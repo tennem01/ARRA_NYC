@@ -14,3 +14,6 @@ knitr::opts_chunk$set(warning = FALSE)
 Oddservations
 
 "DO NOT DISPLAY- TANF Back to School One Time Payment" in payment description
+
+
+The total is around half of the planned allocation.
