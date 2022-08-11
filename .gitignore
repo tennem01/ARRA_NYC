@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 /Data/*
 scratchFile.R
-=======
-./Data/*
-.scratchFile.R
->>>>>>> fc4f396305b0baddb7e553d190f66c8ae3a5f1a7
 
 # History files
 .Rhistory
