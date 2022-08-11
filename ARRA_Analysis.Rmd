@@ -509,38 +509,38 @@ coords = layout_with_sugiyama(network, layers = V(network)$level, hgap = 10, vga
 
 
 par(bg = "#D9D9D9")
-plot(network,
-     layout =-coords$layout[,2:1],
-     vertex.color = ifelse(V(network)$level ==  1, "#0F3F66", "yellow"  ),
-     vertex.label.degree = pi,
-     vertex.label.dist=ifelse(V(network)$level ==  1, -10, 10 ),
-     # vertex.label=  NA  ,
-     vertex.size = 4,
-     # margin =c(0,0,0,0),
-     # asp = 0
+plot(network
+     , layout =-coords$layout[,2:1]
+     , vertex.color = ifelse(V(network)$level ==  1, "#0F3F66", "yellow"  )
+     , vertex.label.degree = pi
+     , vertex.label.dist=ifelse(V(network)$level ==  1, -10, 10 )
+     #, vertex.label=  NA  
+     , vertex.size = 4
+     #, margin =c(0,0,0,0)
+     #, asp = 0
 )
 ```
 
 The edges have been combined so as to see the structure. 
 This does throw out interesting information like the strength of the connections (amount of funding, number of payments or projects).
+This could also have been represented as a matrix with the departments along one side and the categories along the other. 
 
 
 
 ``` {r}
 
 coords = layout_with_fr(network) # Force directed network layout 
-#
 
 par(bg = "#D9D9D9")
-plot(network,
-     layout =coords,
-     vertex.color = ifelse(V(network)$level ==  1, "#0F3F66", "yellow"  ),
-     vertex.label.degree = pi,
-     vertex.label.dist=ifelse(V(network)$level ==  1, -10, 10 ),
-     vertex.label=  NA  ,
-     vertex.size = 4,
-     # margin =c(0,0,0,0),
-     # asp = 0
+plot(network
+     , layout =coords
+     , vertex.color = ifelse(V(network)$level ==  1, "#0F3F66", "yellow"  )
+     , vertex.label.degree = pi
+     , vertex.label.dist=ifelse(V(network)$level ==  1, -10, 10 )
+     , vertex.label=  NA  
+     , vertex.size = 4
+     #, margin =c(0,0,0,0),
+     # , asp = 0
 )
 
 ```
@@ -549,4 +549,8 @@ plot(network,
 Blue nodes are the categories and yellow are the city departments.
 The labels are not shown so the structure can be seen.
 Only a few departments work in multiple categories.
+
+Visually there are some obvious clusters and one next step could be enumerating them. 
+Another next step could be to repeat this with Award Lead City Agency instead of Project Lead City Agency in case they are different.
+Yet another would be to look at the strength of the connections based on number of payments, number of projects, or amount of funding. 
 
