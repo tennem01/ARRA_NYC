@@ -4,6 +4,59 @@ output:
   html_document: default
 ---
 
+American Recovery and Reinvestment Act of 2009 was passed on 2009-02-17.
+
+> "Making supplemental appropriations for job preservation and creation, infrastructure investment, energy efficiency and science, assistance to the unemployed, and State and local fiscal stabilization, for the fiscal year ending September 30, 2009, and for other purposes.
+
+> (a) Statement of Purposes.--The purposes of this Act include the following:
+>
+> (1) To preserve and create jobs and promote economic recovery.
+>
+> (2) To assist those most impacted by the recession.
+>
+> (3) To provide investments needed to increase economic efficiency by spurring technological advances in science and health.
+>
+> (4) To invest in transportation, environmental protection, and other infrastructure that will provide long-term economic benefits.
+>
+> (5) To stabilize State and local government budgets, in order to minimize and avoid reductions in essential services and counterproductive state and local tax increases.
+
+
+## Ideas for the future
+
+ARRA had several goals
+
+
+
+Low hanging fruit
+
+- recreate the NYC Mayor's Office of Operations's midway report with the final data.
+
+Higher up fruit
+
+- Was the ARRA funding supplemented with city funding for larger projects?
+- What was the distribution of funding by sector? and what were the biggest projects in each sector? 
+- Mine Payment Description (text field) by sector to see what the money was being used on? 
+
+
+The NYC Mayor's Office of Operations used four categories
+
+Recovery (job creation)
+
+Relief (assist those most struggling, stabilize state and local budgets)
+
+- Where was the city budget supplemented, where was it displaced?
+- What was the job market like in NYC before and after the ARRA funding (unemployment, number of jobs, type of jobs)?
+
+Reinvestment (infrastructure, education, and environment)
+
+- What was built? What were the investments in education? 
+
+Responsibility (Regular reporting, transparency)
+
+- Check payment dates, contract dates, large lump sum payments
+
+
+
 ```{r setup, include=FALSE} 
 knitr::opts_chunk$set(warning = FALSE) 
 ```
@@ -106,13 +159,10 @@ arraData$Payment.Date <- arraData$Payment.Date %>% as.Date()
 
 
 ``` {r}
-
-
-
 completionCounts <- count(arraData, Actual.Completion.Date)%>%
   arrange(desc(n) ) 
 
-head(completionCounts)
+completionCounts
 # monthdf <- tibble(Month = month(arraData$Actual.Completion.Date), 
 #                   Year = year(arraData$Actual.Completion.Date))
 # 
@@ -165,8 +215,11 @@ stimIdSum <- arraData %>%
 head(stimIdSum)
 
 ```
+
+
 Recreate one of the pie charts from the midterm report.
 This is pie chart covers the distribution of the funds over the eight sectors
+
 ``` {r}
 
 stimIdSum %>% 
@@ -386,34 +439,4 @@ ggplot(paymentDatesWide) +
 
 
 ```
-
-## Ideas for the future
-
-Low hanging fruit
-
-- recreate the NYC council's midway report with the final data.
-
-Higher up fruit
-
-- Was the ARRA funding supplemented with city funding for larger projects
-- What was the distribution of funding by sector? and what were the biggest projects in each sector? 
-- Mine Payment Description (text field) by sector to see what the money was being used on? 
-
-
-
-Recovery (job creation)
-
-Relief (assist those most struggling, stabilize state and local budgets)
-
-- Where was the city budget supplemented, where was it displaced?
-- What was the job market like in NYC before and after the ARRA funding (unemployment, number of jobs, type of jobs)?
-
-Reinvestment (infrastructure, education, and environment)
-
-- What was built? What were the investments in education? 
-
-Responsibility (Regular reporting, transparency)
-
-- Check payment dates, contract dates, large lump sum payments
-
 
