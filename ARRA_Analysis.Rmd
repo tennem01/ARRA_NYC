@@ -21,15 +21,12 @@ American Recovery and Reinvestment Act of 2009 was passed on 2009-02-17.
 > (5) To stabilize State and local government budgets, in order to minimize and avoid reductions in essential services and counterproductive state and local tax increases.
 
 
-## Ideas for the future
-
-ARRA had several goals
-
+## Potential Questions
 
 
 Low hanging fruit
 
-- recreate the NYC Mayor's Office of Operations's midway report with the final data.
+- recreate the NYC Mayor's Office of Operation's midway report with the final data. [Link is a direct download to a pdf](http://www.nyc.gov/html/ops/nycstim/downloads/pdf/human_services_council_presentation_mayors_office_of_operations.pdf) (slides 17, and 22-24 have the relevant figures).
 
 Higher up fruit
 
@@ -87,7 +84,7 @@ pacman::p_load(readxl) # read in excel files
 # Data visualization
 pacman::p_load(ggplot2) # plotting package, not used currently but can be used to look at the networks visually
 pacman::p_load(scales) # plotting package, extends ggplot2
-# pacman::p_load(RColorBrewer)
+# pacman::p_load(RColorBrewer) # extra color palettes
 
 # Misc
 pacman::p_load(igraph) # networks: creation, transformation, etc
@@ -102,7 +99,7 @@ Next we have to point to where the data lives in the repository.
 It is in a ./Data/ folder but in not in the git repo. 
 The data can be found on [kaggle](https://www.kaggle.com/datasets/new-york-city/nyc-use-of-arra-stimulus-funds?resource=download) or on NYC's city [OpenData webpage](https://data.cityofnewyork.us/City-Government/Use-of-ARRA-Stimulus-Funds/ivix-m77e)
 
-The dataset covers the use of funds from the American Recovery and Reinvestemnt Act of 2009.
+The dataset covers the use of funds from the American Recovery and Reinvestment Act of 2009.
 The dataset was originally made public in 2011.
 It was last updated in 2018 and the metadata was last updated in 2022.
 
@@ -118,8 +115,7 @@ ArradDictionaryFile <- "Data_Dictionary_Use_of_ARRA_Stimulus_Funds.xlsx"
 
 ## Load data
 
-Read in data and the metadata. 
-The 
+Read in data and the metadata.
 
 ``` {r}
 # Read in the data file
@@ -132,17 +128,6 @@ arraData <- read.csv(file = paste0(dataFolder, ArraDataFile)) %>% as_tibble
 arraMetaData <- read_json(path = paste0(dataFolder, ArraJSONFile), simplifyVector = FALSE) 
 
 ```
-
-
-Some initial thoughts
-There are `r arraData$Stimulus.Tracker.ID %>% unique() %>% length()` unioque tracked projects in `r arraData$Funding.Category %>% unique() %>% length()` categories.
-Awards were awarded through `r length(unique(arraData$Award.Lead.City.Agency))` city agencies. 
-
-
-There are `r arraData$Payment.Id %>% length()` rows.
-The unique id column in each row is the Paymend ID with `r (arraData$Payment.Id %>% unique() %>% length())-1` unique entries and `r which(is.na(arraData$Payment.Id))%>% length()` with no value.
-
-
 
 
 
@@ -158,50 +143,20 @@ arraData$Payment.Date <- arraData$Payment.Date %>% as.Date()
 
 
 
-``` {r}
-completionCounts <- count(arraData, Actual.Completion.Date)%>%
-  arrange(desc(n) ) 
-
-completionCounts
-# monthdf <- tibble(Month = month(arraData$Actual.Completion.Date), 
-#                   Year = year(arraData$Actual.Completion.Date))
-# 
-# ggplot(monthdf) +
-#   geom_histogram(aes(x = Month),
-#                  breaks=seq(1, 12, by = 1),
-#                  colour="black",
-#                  fill="purple"
-#   )
-# 
-# ggplot(datedf) +
-#   geom_histogram(aes(x = Year),
-#                  breaks=seq(2008, 2022 , by = 1),
-#                  colour="black",
-#                  fill="purple"
-#   )
+Some initial thoughts
+There are `r arraData$Stimulus.Tracker.ID %>% unique() %>% length()` unique tracked projects in `r arraData$Funding.Category %>% unique() %>% length()` categories.
+Awards were awarded through `r length(unique(arraData$Award.Lead.City.Agency))` different city agencies. 
 
 
-```
-There are only `r length(completionCounts$n)` days on which projects were listed as completed.
+There are `r arraData$Payment.Id %>% length()` rows.
+The unique id column in each row is the Payment ID with `r (arraData$Payment.Id %>% unique() %>% length())-1` unique entries and `r which(is.na(arraData$Payment.Id))%>% length()` with no value.
+The NAs are probably worth looking into at some point. 
 
 
-``` {r}
-arraCompleted <- arraData %>% filter(Project.Status == "Fully Completed"  )
+# Pie charts
 
-LargePayments <- arraCompleted %>% filter(Payment.Value > 1000000)
-
-(LargePayments$Payment.Value/1000000) %>% sort(decreasing = TRUE)
-
-
-
-```
-
-
-Only `r arraCompleted$Stimulus.Tracker.ID %>% unique %>% length()` projects are listed as "Fully Completed."
-`r LargePayments$Project.Name %>% length()` of them had payments over 1 million dollars and those payments come from `r LargePayments$Stimulus.Tracker.ID %>% unique() %>% length()` different projects.
-
-
-
+Recreate one of the pie charts from the midterm report.
+This is pie chart covers the distribution of the funds over the eight sectors
 
 
 ``` {r}
@@ -212,13 +167,11 @@ stimIdSum <- arraData %>%
   summarise(TotalMoney = sum(Payment.Value), .groups= "keep") %>%
   arrange(desc(TotalMoney) ) 
 
-head(stimIdSum)
+# head(stimIdSum)
 
 ```
 
 
-Recreate one of the pie charts from the midterm report.
-This is pie chart covers the distribution of the funds over the eight sectors
 
 ``` {r}
 
@@ -228,6 +181,7 @@ stimIdSum %>%
   ggplot( aes(x="", y=Money, fill=Funding.Category ))+
   geom_bar(stat="identity", width=1, color="white") +
   coord_polar("y", start=0) +
+  ggtitle("Proportion money paid out by category")+
   theme_void() # remove background, grid, numeric labels
 
 
@@ -243,12 +197,50 @@ arraData %>%
   ggplot( aes(x="", y=n, fill=Funding.Category ))+
   geom_bar(stat="identity", width=1, color="white") +
   coord_polar("y", start=0) +
+  ggtitle("Proportion of the number of payments by category")+
   theme_void() # remove background, grid, numeric labels
 
 
 ```
-The ordert of the funding categories is the same in the two pie charts.
-Medicaid relief for being the largest category was done is 8 payments. 
+
+
+The order of the funding categories is the same in the two pie charts.
+Medicaid relief while being the largest category was done is 8 payments.  
+
+
+
+# Total money awarded
+
+The total of the payment value column is `r round(sum(arraData$Payment.Value, na.rm = TRUE)/10^6)` million dollars.
+The number listed in the presentation referenced above my the Mayors office lists that as of  December 31, 2009 they have: \$6,034 million awarded, received \$185M, and spent \$475M.
+
+
+
+
+# Funding size
+
+
+``` {r}
+arraCompleted <- arraData %>% filter(Project.Status == "Fully Completed"  )
+
+LargePayments <- arraCompleted %>% 
+  filter(Payment.Value > 1000000) %>%
+  arrange(desc(Payment.Value))
+
+# List the individual payments over 1 million dollars. 
+print(LargePayments[,c("Payment.Value","Project.Name", "Funding.Category")])
+
+```
+
+
+Only `r arraCompleted$Stimulus.Tracker.ID %>% unique %>% length()` projects are listed as "Fully Completed."
+`r LargePayments$Project.Name %>% length()` of them had final payments over 1 million dollars and those payments come from `r LargePayments$Stimulus.Tracker.ID %>% unique() %>% length()` different projects.
+
+
+
+
+
+
 
 ``` {r}
 # Add a color blind friendly palette
@@ -321,6 +313,44 @@ ggplot(stimIdSum) +
 
 ```
 
+
+# Time of Payments
+
+Look into the timing of the payments. 
+Since there were fairly strict reporting requirements for ARRA, ideally there should be no obvious gaps. 
+
+
+First lets look at the completion date for each project. 
+
+``` {r}
+completionCounts <- count(arraData, Actual.Completion.Date)%>%
+  arrange(desc(n) ) 
+
+completionCounts
+# monthdf <- tibble(Month = month(arraData$Actual.Completion.Date), 
+#                   Year = year(arraData$Actual.Completion.Date))
+# 
+# ggplot(monthdf) +
+#   geom_histogram(aes(x = Month),
+#                  breaks=seq(1, 12, by = 1),
+#                  colour="black",
+#                  fill="purple"
+#   )
+# 
+# ggplot(datedf) +
+#   geom_histogram(aes(x = Year),
+#                  breaks=seq(2008, 2022 , by = 1),
+#                  colour="black",
+#                  fill="purple"
+#   )
+
+
+```
+
+
+There are only `r length(completionCounts$n)` days on which projects were listed as completed.
+
+
 ``` {r}
 paymentDates <- arraData %>% 
   filter(is.na(Payment.Id)==FALSE) %>%
@@ -369,7 +399,7 @@ ggplot(paymentDates) +
   scale_y_continuous(trans='log10'
                      , breaks=breaks_log()
                      , labels=trans_format('log10', math_format(10^.x))
-                     # , limits = ylimits
+                     , limits = c(10^0, 10^9)
                      , expand = c(0, 0)
                      , sec.axis = dup_axis(trans = ~.,
                                            name = NULL,
@@ -434,7 +464,7 @@ ggplot(paymentDatesWide) +
   # scale_y_continuous(limits=c(0, 15), expand = c(0, 0)) +
   theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))+
   xlab("Date")+
-  ylab("Total money spent by day")
+  ylab("Total money spent by day: Infrastructure")
 
 
 
