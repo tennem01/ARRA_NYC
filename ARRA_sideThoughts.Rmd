@@ -1,0 +1,16 @@
+---
+title: "ARRA Analysis: NYC"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE) 
+```
+
+
+
+
+Oddservations
+
+"DO NOT DISPLAY- TANF Back to School One Time Payment" in payment description

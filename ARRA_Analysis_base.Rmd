@@ -1,0 +1,419 @@
+---
+title: "ARRA Analysis: NYC"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE) 
+```
+
+
+
+```{r}
+# Load Packages
+# First we will install a package manager: pacman
+if (!require("pacman")) {install.packages("pacman")} 
+
+# And then we will use pacman to check if the other needed packages are installed and install if necessary
+
+# Data manipulation
+pacman::p_load(tidyverse) # General R improvements includes stringr, dplyr
+pacman::p_load(lubridate) # date manipulation
+pacman::p_load(stringi) # string processing, has some functions that work better than stringr
+# pacman::p_load(data.table)   # extension of data.frame, has in-place replacement
+pacman::p_load(countrycode) # converts country names to country codes, used in affiliation reconciliation
+
+# Data access
+pacman::p_load(filesstrings) # make and edit files/folders
+pacman::p_load(httr) # api access
+pacman::p_load(xml2) # xml access and parsing
+pacman::p_load(jsonlite) # JSON interpreter
+pacman::p_load(readxl) # read in excel files
+
+# Data visualization
+pacman::p_load(ggplot2) # plotting package, not used currently but can be used to look at the networks visually
+pacman::p_load(scales) # plotting package, extends ggplot2
+# pacman::p_load(RColorBrewer)
+
+# Misc
+pacman::p_load(igraph) # networks: creation, transformation, etc
+
+# Restart R session if you install new packages
+# .rs.restartR()
+
+
+```
+
+Next we have to point to where the data lives in the repository. 
+It is in a ./Data/ folder but in not in the git repo. 
+The data can be found on [kaggle](https://www.kaggle.com/datasets/new-york-city/nyc-use-of-arra-stimulus-funds?resource=download) or on NYC's city [OpenData webpage](https://data.cityofnewyork.us/City-Government/Use-of-ARRA-Stimulus-Funds/ivix-m77e)
+
+The dataset covers the use of funds from the American Recovery and Reinvestemnt Act of 2009.
+The dataset was originally made public in 2011.
+It was last updated in 2018 and the metadata was last updated in 2022.
+
+``` {r}
+dataFolder <- "./Data/"
+
+ArraDataFile <- "use-of-arra-stimulus-funds.csv" 
+ArraJSONFile <- "socrata_metadata.json"  
+ArradDictionaryFile <- "Data_Dictionary_Use_of_ARRA_Stimulus_Funds.xlsx"
+
+
+```
+
+## Load data
+
+Read in data and the metadata. 
+The 
+
+``` {r}
+# Read in the data file
+arraData <- read.csv(file = paste0(dataFolder, ArraDataFile)) %>% as_tibble
+# I'm choosing to import and convert to tibble to make use of dplyr's filtering and ease of use with ggplot2
+# I could also have used data.table which has better in place replacement but since this dataset is not huge and I do not expect to need in place replacement, tibble's are a better fit.
+
+
+# Read in the metadata file
+arraMetaData <- read_json(path = paste0(dataFolder, ArraJSONFile), simplifyVector = FALSE) 
+
+```
+
+
+Some initial thoughts
+There are `r arraData$Stimulus.Tracker.ID %>% unique() %>% length()` unioque tracked projects in `r arraData$Funding.Category %>% unique() %>% length()` categories.
+Awards were awarded through `r length(unique(arraData$Award.Lead.City.Agency))` city agencies. 
+
+
+There are `r arraData$Payment.Id %>% length()` rows.
+The unique id column in each row is the Paymend ID with `r (arraData$Payment.Id %>% unique() %>% length())-1` unique entries and `r which(is.na(arraData$Payment.Id))%>% length()` with no value.
+
+
+
+
+
+Convert date columns from strings to dates.
+
+``` {r}
+arraData$Actual.Completion.Date <- arraData$Actual.Completion.Date %>% as_date()
+arraData$Date.Funds.Awarded.by.Fed.State <- arraData$Date.Funds.Awarded.by.Fed.State %>% as.Date()
+arraData$Actual.Start.Date <- arraData$Actual.Start.Date %>% as.Date()
+arraData$Payment.Date <- arraData$Payment.Date %>% as.Date()
+
+```
+
+
+
+``` {r}
+
+
+
+completionCounts <- count(arraData, Actual.Completion.Date)%>%
+  arrange(desc(n) ) 
+
+head(completionCounts)
+# monthdf <- tibble(Month = month(arraData$Actual.Completion.Date), 
+#                   Year = year(arraData$Actual.Completion.Date))
+# 
+# ggplot(monthdf) +
+#   geom_histogram(aes(x = Month),
+#                  breaks=seq(1, 12, by = 1),
+#                  colour="black",
+#                  fill="purple"
+#   )
+# 
+# ggplot(datedf) +
+#   geom_histogram(aes(x = Year),
+#                  breaks=seq(2008, 2022 , by = 1),
+#                  colour="black",
+#                  fill="purple"
+#   )
+
+
+```
+There are only `r length(completionCounts$n)` days on which projects were listed as completed.
+
+
+``` {r}
+arraCompleted <- arraData %>% filter(Project.Status == "Fully Completed"  )
+
+LargePayments <- arraCompleted %>% filter(Payment.Value > 1000000)
+
+(LargePayments$Payment.Value/1000000) %>% sort(decreasing = TRUE)
+
+
+
+```
+
+
+Only `r arraCompleted$Stimulus.Tracker.ID %>% unique %>% length()` projects are listed as "Fully Completed."
+`r LargePayments$Project.Name %>% length()` of them had payments over 1 million dollars and those payments come from `r LargePayments$Stimulus.Tracker.ID %>% unique() %>% length()` different projects.
+
+
+
+
+
+``` {r}
+
+stimIdSum <- arraData %>% 
+  filter(is.na(Payment.Id)==FALSE) %>%
+  group_by(Stimulus.Tracker.ID,Funding.Category) %>% 
+  summarise(TotalMoney = sum(Payment.Value), .groups= "keep") %>%
+  arrange(desc(TotalMoney) ) 
+
+head(stimIdSum)
+
+```
+Recreate one of the pie charts from the midterm report.
+This is pie chart covers the distribution of the funds over the eight sectors
+``` {r}
+
+stimIdSum %>% 
+  group_by(Funding.Category) %>%
+  summarize(Money = sum(TotalMoney)) %>%
+  ggplot( aes(x="", y=Money, fill=Funding.Category ))+
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() # remove background, grid, numeric labels
+
+
+```
+
+
+Which we can compare to the number of payments made to get a sense of whether the payments were in large lump sums or more spread out. 
+
+``` {r}
+arraData %>% 
+  filter(is.na(Payment.Id)==FALSE) %>%
+  count(Funding.Category)  %>%
+  ggplot( aes(x="", y=n, fill=Funding.Category ))+
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() # remove background, grid, numeric labels
+
+
+```
+The ordert of the funding categories is the same in the two pie charts.
+Medicaid relief for being the largest category was done is 8 payments. 
+
+``` {r}
+# Add a color blind friendly palette
+# ref: http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/#a-colorblind-friendly-palette
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73",  "#0072B2","#F0E442", "#D55E00", "#CC79A7")
+
+
+stimIdSum  %>% 
+  mutate(TotalMoney = ifelse(TotalMoney > 2000000, 2000000, TotalMoney)) %>% # If the total money for a project is great than 2 million set it to 2 million for the sake of seeing it on the histogram
+  ggplot() +
+  geom_histogram(aes(x = (TotalMoney/1000), fill = Funding.Category),
+                 breaks=seq(0, 2000 , by = 50),
+                 # colour="black",
+                 # fill="purple"
+  )+
+  scale_fill_manual(values=cbPalette)+
+  theme(
+    plot.background = element_rect(fill = "#D9D9D9")
+    , legend.key = element_rect(fill = "#D9D9D9")
+    , legend.background = element_rect(fill="#D9D9D9")
+    
+    , panel.background = element_rect(fill = "#D9D9D9",
+                                      colour = "#D9D9D9",
+                                      size = 0.5, linetype = "solid")
+    , panel.border = element_rect(fill = "NA",
+                                  colour = "black",
+                                  size = 0.5, linetype = "solid")
+    , panel.grid.major = element_blank()
+    , panel.grid.minor = element_blank()
+    , axis.ticks.length = -unit(0, "pt")
+    # , axis.title.y = element_text(angle = 0, vjust = 0.5, hjust=0)
+  )+
+  scale_x_continuous(limits=c(0, 2100), expand = c(0, 0)) +
+  scale_y_continuous(limits=c(0, 50), expand = c(0, 0)) +
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))+
+  xlab("Ammount per project ($ in Thousands)")+
+  ylab("Number of Projects")
+
+
+
+ggplot(stimIdSum) +
+  geom_histogram(aes(x = (TotalMoney/1000), fill = Funding.Category),
+                 breaks=seq(0, 1500 , by = 50),
+                 # colour="black",
+                 # fill="purple"
+  )+
+  scale_fill_manual(values=cbPalette)+
+  theme(
+    plot.background = element_rect(fill = "#D9D9D9")
+    , legend.key = element_rect(fill = "#D9D9D9")
+    , legend.background = element_rect(fill="#D9D9D9")
+    
+    , panel.background = element_rect(fill = "#D9D9D9",
+                                      colour = "#D9D9D9",
+                                      size = 0.5, linetype = "solid")
+    , panel.border = element_rect(fill = "NA",
+                                  colour = "black",
+                                  size = 0.5, linetype = "solid")
+    , panel.grid.major = element_blank()
+    , panel.grid.minor = element_blank()
+    , axis.ticks.length = -unit(0, "pt")
+    # , axis.title.y = element_text(angle = 0, vjust = 0.5, hjust=0)
+  )+
+  scale_x_continuous(limits=c(0, 1500), expand = c(0, 0)) +
+  scale_y_continuous(limits=c(0, 15), expand = c(0, 0)) +
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))+
+  xlab("Ammount per project ($ in Thousands)")+
+  ylab("Number of Projects")
+
+
+```
+
+``` {r}
+paymentDates <- arraData %>% 
+  filter(is.na(Payment.Id)==FALSE) %>%
+  group_by(Payment.Date, Funding.Category) %>% 
+  summarise(TotalMoney = sum(Payment.Value), .groups= "keep") 
+
+
+
+
+ggplot(paymentDates) +
+  geom_point(aes(Payment.Date, (TotalMoney/1000), colour = Funding.Category)
+  )+
+  # scale_color_manual(values=cbPalette)+
+  theme(
+    plot.background = element_rect(fill = "#D9D9D9")
+    , legend.key = element_rect(fill = "#D9D9D9")
+    , legend.background = element_rect(fill="#D9D9D9")
+    
+    , panel.background = element_rect(fill = "#D9D9D9",
+                                      colour = "#D9D9D9",
+                                      size = 0.5, linetype = "solid")
+    , panel.border = element_rect(fill = "NA",
+                                  colour = "black",
+                                  size = 0.5, linetype = "solid")
+    , panel.grid.major = element_blank()
+    , panel.grid.minor = element_blank()
+    , axis.ticks.length = -unit(0, "pt")
+    # , axis.title.y = element_text(angle = 0, vjust = 0.5, hjust=0)
+  )+
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))+
+  xlab("Date")+
+  ylab("Amount spent per day ($ in Thousands)")
+
+
+
+```
+
+
+
+
+``` {r}
+
+ggplot(paymentDates) +
+  geom_point(aes(Payment.Date, TotalMoney, colour = Funding.Category)
+  )+
+  scale_y_continuous(trans='log10'
+                     , breaks=breaks_log()
+                     , labels=trans_format('log10', math_format(10^.x))
+                     # , limits = ylimits
+                     , expand = c(0, 0)
+                     , sec.axis = dup_axis(trans = ~.,
+                                           name = NULL,
+                                           breaks = derive(),
+                                           labels = NULL,
+                                           guide = derive()
+                     )
+  )+
+  theme(
+    plot.background = element_rect(fill = "#D9D9D9")
+    , legend.key = element_rect(fill = "#D9D9D9")
+    , legend.background = element_rect(fill="#D9D9D9")
+    
+    , panel.background = element_rect(fill = "#D9D9D9",
+                                      colour = "#D9D9D9",
+                                      size = 0.5, linetype = "solid")
+    , panel.border = element_rect(fill = "NA",
+                                  colour = "black",
+                                  size = 0.5, linetype = "solid")
+    , panel.grid.major = element_blank()
+    , panel.grid.minor = element_blank()
+    , axis.ticks.length = -unit(0, "pt")
+    # , axis.title.y = element_text(angle = 0, vjust = 0.5, hjust=0)
+  )+
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))+
+  xlab("Date")+
+  ylab("Amount spent per day ($)")
+
+
+```
+
+
+
+``` {r}
+
+paymentDatesWide <- arraData %>% 
+  filter(is.na(Payment.Id)==FALSE) %>%
+  group_by(Payment.Date, Funding.Category) %>% 
+  summarise(TotalMoney = sum(Payment.Value), .groups= "keep") %>%
+  pivot_wider(names_from = Funding.Category, values_from = TotalMoney)
+
+
+
+ggplot(paymentDatesWide) +
+  geom_point(aes(x = Payment.Date, y = (`Infrastructure`/1000 ))
+  )+
+  theme(
+    plot.background = element_rect(fill = "#D9D9D9")
+    
+    , panel.background = element_rect(fill = "#D9D9D9",
+                                      colour = "#D9D9D9",
+                                      size = 0.5, linetype = "solid")
+    , panel.border = element_rect(fill = "NA",
+                                  colour = "black",
+                                  size = 0.5, linetype = "solid")
+    , panel.grid.major = element_blank()
+    , panel.grid.minor = element_blank()
+    , axis.ticks.length = -unit(0, "pt")
+    , axis.title.y = element_text(angle = 0, vjust = 0.5, hjust=0)
+  )+
+  # scale_x_continuous(limits=c(0, 1500), expand = c(0, 0)) +
+  # scale_y_continuous(limits=c(0, 15), expand = c(0, 0)) +
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))+
+  xlab("Date")+
+  ylab("Total money spent by day")
+
+
+
+```
+
+## Ideas for the future
+
+Low hanging fruit
+
+- recreate the NYC council's midway report with the final data.
+
+Higher up fruit
+
+- Was the ARRA funding supplemented with city funding for larger projects
+- What was the distribution of funding by sector? and what were the biggest projects in each sector? 
+- Mine Payment Description (text field) by sector to see what the money was being used on? 
+
+
+
+Recovery (job creation)
+
+Relief (assist those most struggling, stabilize state and local budgets)
+
+- Where was the city budget supplemented, where was it displaced?
+- What was the job market like in NYC before and after the ARRA funding (unemployment, number of jobs, type of jobs)?
+
+Reinvestment (infrastructure, education, and environment)
+
+- What was built? What were the investments in education? 
+
+Responsibility (Regular reporting, transparency)
+
+- Check payment dates, contract dates, large lump sum payments
+
+
