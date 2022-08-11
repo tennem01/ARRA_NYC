@@ -32,6 +32,7 @@ Higher up fruit
 
 - Was the ARRA funding supplemented with city funding for larger projects?
 - What was the distribution of funding by sector? and what were the biggest projects in each sector? 
+- Were projects completed on time anmd in budget?
 - Mine Payment Description (text field) by sector to see what the money was being used on? 
 
 
@@ -469,4 +470,83 @@ ggplot(paymentDatesWide) +
 
 
 ```
+
+
+# Network analysis
+
+``` {r}
+tmp <-  arraData %>% 
+  filter(is.na(Payment.Id)==FALSE)
+# tmp$Funding.Category
+# tmp$Award.Lead.City.Agency
+# 
+# tmp$Project.Lead.City.Agency
+
+network <- tmp[,c("Funding.Category", "Project.Lead.City.Agency")] %>%
+  # group_by(Funding.Category, Project.Lead.City.Agency) %>% 
+  graph.data.frame( directed=FALSE) %>%
+  simplify( edge.attr.comb=list( "ignore")) # Combines duplicate edges
+
+# vertex_attr_names(network)
+# edge_attr_names(network)
+
+
+# coMatrix <- as_adjacency_matrix(network)
+
+V(network)$level <- 0
+categories <- arraData$Funding.Category %>% unique()
+
+for( netiter in 1:length(V(network)$name)){
+  if (V(network)[netiter]$name %in% categories ){
+    V(network)[netiter]$level <- 1
+  }
+  
+}
+
+# Sugiyama bipartite network layout
+coords = layout_with_sugiyama(network, layers = V(network)$level, hgap = 10, vgap = 1,
+                              maxiter = 100, weights = NULL, attributes = c("default", "all", "none"))
+
+
+par(bg = "#D9D9D9")
+plot(network,
+     layout =-coords$layout[,2:1],
+     vertex.color = ifelse(V(network)$level ==  1, "#0F3F66", "yellow"  ),
+     vertex.label.degree = pi,
+     vertex.label.dist=ifelse(V(network)$level ==  1, -10, 10 ),
+     # vertex.label=  NA  ,
+     vertex.size = 4,
+     # margin =c(0,0,0,0),
+     # asp = 0
+)
+```
+
+The edges have been combined so as to see the structure. 
+This does throw out interesting information like the strength of the connections (amount of funding, number of payments or projects).
+
+
+
+``` {r}
+
+coords = layout_with_fr(network) # Force directed network layout 
+#
+
+par(bg = "#D9D9D9")
+plot(network,
+     layout =coords,
+     vertex.color = ifelse(V(network)$level ==  1, "#0F3F66", "yellow"  ),
+     vertex.label.degree = pi,
+     vertex.label.dist=ifelse(V(network)$level ==  1, -10, 10 ),
+     vertex.label=  NA  ,
+     vertex.size = 4,
+     # margin =c(0,0,0,0),
+     # asp = 0
+)
+
+```
+
+
+Blue nodes are the categories and yellow are the city departments.
+The labels are not shown so the structure can be seen.
+Only a few departments work in multiple categories.
 
